@@ -4,6 +4,10 @@ Prerequisites: Nodejs installed
 
 - Open a command line terminal and navigate to the root folder of this repository.
 - Do `npm install`
+- Do `npm install -g browserify`
+- Do `npm install -g watchify`
+- Do `watchify public/javascripts/new/main.js -v -o public/javascripts/new/bundle.js` and keep the terminal open.
+- Open another terminal and navigate to the root folder of this repository.
 - Do `node bin/www`
 - Open a browser and navigate to `localhost:3000`
 
@@ -17,7 +21,7 @@ You should see CodeCraft now.
 To modify the code base, you will need to install `browserify` and `watchify`
 
 - Do `npm install -g browserify`
-- Do `npm install -g wachify`
+- Do `npm install -g watchify`
 - Do `watchify public/javascripts/new/main.js -v -o public/javascripts/new/bundle.js`. All your changes in `new/` will be watched and compiled into `bundle.js`
 
 ###When you contribute
@@ -30,7 +34,8 @@ As the migration is still in progress, it is important to know what has been mig
 - morphic.js
 - widgets.js
 - cloud.js
-#####In-progress:
+
+######In-progress:
 - blocks.js
 
 Alternatively, you can look at the `main.js` to see which classes and files has been migrated. 
