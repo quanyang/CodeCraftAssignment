@@ -4,119 +4,121 @@
  * Module dependencies.
  */
 
-var app = require('../app');
-var debug = require('debug')('codecraft-socket:server');
-var http = require('http');
-var _ = require('underscore');
+ var app = require('../app');
+ var debug = require('debug')('codecraft-socket:server');
+ var http = require('http');
+ var _ = require('underscore');
 
 
 /**
  * Get port from environment and store in Express.
  */
 
-var port = parseInt(process.env.PORT, 10) || 3000;
-app.set('port', port);
+ var port = parseInt(process.env.PORT, 10) || 3000;
+ app.set('port', port);
 
 /**
  * Create HTTP server.
  */
 
-var server = http.createServer(app);
+ var server = http.createServer(app);
 
 /**
  * Listen on provided port, on all network interfaces.
  */
 
 
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
+ server.listen(port);
+ server.on('error', onError);
+ server.on('listening', onListening);
 
-var io = require('socket.io')(server);
+ var io = require('socket.io')(server);
 
-var clients = {}
+ var clients = {};
+ var announcement_received = {};
+ var announcement_receivable ={};
 
-io.sockets.on('connection', function(socket){
+ io.sockets.on('connection', function(socket){
 
-		socket.on('SEND_ITEM', function(data){
-			if(!(_.isUndefined(clients[data.room]))){
-				if(!(_.isUndefined(clients[data.room].items))){
-					clients[data.room].items.push(data.data);
-				}else{
-					clients[data.room].items = [];
-				}
-				io.to(data.room).emit('UPDATE_SHAREBOX_VIEW', clients[data.room].items);
-				io.emit('SOCKET_CONTROL_UPDATE', clients);	
-			}
-			
-		})
+ 	socket.on('SEND_ITEM', function(data){
+ 		if(!(_.isUndefined(clients[data.room]))){
+ 			if(!(_.isUndefined(clients[data.room].items))){
+ 				clients[data.room].items.push(data.data);
+ 			}else{
+ 				clients[data.room].items = [];
+ 			}
+ 			io.to(data.room).emit('UPDATE_SHAREBOX_VIEW', clients[data.room].items);
+ 			io.emit('SOCKET_CONTROL_UPDATE', clients);
+ 		}
 
-		socket.on('REMOVE_ITEM', function(data){
-            console.log(data);
-			if(!(_.isUndefined(clients[data.room]))){
-				if(!(_.isUndefined(clients[data.room].items))){
-					clients[data.room].items = _.reject(clients[data.room].items, function (item){
-						if(item.name == data.data.name) {
-							return true;
-						} else {
-							return false;
-						}
-					})
-				}else{
-					clients[data.room].items = [];
-				}
-				io.to(data.room).emit('UPDATE_SHAREBOX_VIEW', clients[data.room].items);
-				io.emit('SOCKET_CONTROL_UPDATE', clients);	
-			}
-			
-		})
+ 	})
 
-		io.emit('SOCKET_CONTROL_UPDATE', clients);
+ 	socket.on('REMOVE_ITEM', function(data){
+ 		console.log(data);
+ 		if(!(_.isUndefined(clients[data.room]))){
+ 			if(!(_.isUndefined(clients[data.room].items))){
+ 				clients[data.room].items = _.reject(clients[data.room].items, function (item){
+ 					if(item.name == data.data.name) {
+ 						return true;
+ 					} else {
+ 						return false;
+ 					}
+ 				})
+ 			}else{
+ 				clients[data.room].items = [];
+ 			}
+ 			io.to(data.room).emit('UPDATE_SHAREBOX_VIEW', clients[data.room].items);
+ 			io.emit('SOCKET_CONTROL_UPDATE', clients);
+ 		}
 
-		socket.on('SOCKET_CONTROL_REQUEST_UPDATE', function(data){
-			io.emit('SOCKET_CONTROL_UPDATE', clients)
-		})
+ 	})
 
-		socket.on('JOIN_SHAREBOX', function(data) {
-			if(data.room !== 'common'){
-				socket.join(data.room);
-				if(clients[data.room]){
-					for (var i = clients[data.room].members.length - 1; i >= 0; i--) {
-						if(clients[data.room].members[i].clientId == data.id) {
-							clients[data.room].members[i].isPending = false;
-							clients[data.room].members[i].socketId = socket.id;
-						}
-					};
-					
-				} else {
-					var clientInfo = {
-						clientId: data.id,
-						socketId: socket.id,
-						isPending: false
-					}
-					clients[data.room] = {
-						owner: clientInfo,
-						members: [clientInfo],
-						items: []
-					};
-				}
-				console.log(data.id + "is joining " + data.room);
-				io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
+ 	io.emit('SOCKET_CONTROL_UPDATE', clients);
 
-			}
-			io.emit('SOCKET_CONTROL_UPDATE', clients);
+ 	socket.on('SOCKET_CONTROL_REQUEST_UPDATE', function(data){
+ 		io.emit('SOCKET_CONTROL_UPDATE', clients)
+ 	})
+
+ 	socket.on('JOIN_SHAREBOX', function(data) {
+ 		if(data.room !== 'common'){
+ 			socket.join(data.room);
+ 			if(clients[data.room]){
+ 				for (var i = clients[data.room].members.length - 1; i >= 0; i--) {
+ 					if(clients[data.room].members[i].clientId == data.id) {
+ 						clients[data.room].members[i].isPending = false;
+ 						clients[data.room].members[i].socketId = socket.id;
+ 					}
+ 				};
+
+ 			} else {
+ 				var clientInfo = {
+ 					clientId: data.id,
+ 					socketId: socket.id,
+ 					isPending: false
+ 				}
+ 				clients[data.room] = {
+ 					owner: clientInfo,
+ 					members: [clientInfo],
+ 					items: []
+ 				};
+ 			}
+ 			console.log(data.id + "is joining " + data.room);
+ 			io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
+
+ 		}
+ 		io.emit('SOCKET_CONTROL_UPDATE', clients);
 
 
-		});
+ 	});
 
-		socket.on('LEAVE_SHAREBOX', function(data){
-			console.log("left")
+ 	socket.on('LEAVE_SHAREBOX', function(data){
+ 		console.log("left")
 
-			var roomInfo = clients[data.room];
-			if(!(_.isUndefined(roomInfo))){
-				var isOwner = roomInfo.owner.socketId === socket.id
+ 		var roomInfo = clients[data.room];
+ 		if(!(_.isUndefined(roomInfo))){
+ 			var isOwner = roomInfo.owner.socketId === socket.id
 
-				if (isOwner) {
+ 			if (isOwner) {
 					// owner quit then disbande the group
 					delete clients[data.room];
 					io.to(data.room).emit('DISBAND_SHAREBOX');
@@ -132,61 +134,104 @@ io.sockets.on('connection', function(socket){
 					io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
 				}
 			}
-			
+
 
 			io.emit('SOCKET_CONTROL_UPDATE', clients);
-			
+
 		})
-		
-		socket.on('REMOVE_USER', function(data){
-			if(clients[data.room].owner.socketId === socket.id){
-				if(!(_.isUndefined(clients[data.room]))){
-					var isOwner = clients[data.room].owner.clientId === data.removeId
-					if (isOwner) {
-						delete clients[data.room];
-						io.to(data.room).emit('DISBAND_SHAREBOX');
-					} else {
-						for (var i = clients[data.room].members.length - 1; i >= 0; i--) {
-						if(clients[data.room].members[i].clientId === data.removeId){
-							var sid = clients[data.room].members[i].socketId
-							clients[data.room].members.splice(i, 1);
-							io.to(sid).emit('BE_REMOVED')
-							console.log(sid)
-							io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
-						}
-						console.log(JSON.stringify(clients))
-						
-					};
+
+ 	socket.on('REMOVE_USER', function(data){
+ 		if(clients[data.room].owner.socketId === socket.id){
+ 			if(!(_.isUndefined(clients[data.room]))){
+ 				var isOwner = clients[data.room].owner.clientId === data.removeId
+ 				if (isOwner) {
+ 					delete clients[data.room];
+ 					io.to(data.room).emit('DISBAND_SHAREBOX');
+ 				} else {
+ 					for (var i = clients[data.room].members.length - 1; i >= 0; i--) {
+ 						if(clients[data.room].members[i].clientId === data.removeId){
+ 							var sid = clients[data.room].members[i].socketId
+ 							clients[data.room].members.splice(i, 1);
+ 							io.to(sid).emit('BE_REMOVED')
+ 							console.log(sid)
+ 							io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
+ 						}
+ 						console.log(JSON.stringify(clients))
+
+ 					};
+ 				}
+
+
+ 			}
+
+ 		}
+ 		io.emit('SOCKET_CONTROL_UPDATE', clients);
+
+ 	})
+
+ 	socket.on('ANNOUNCEMENT', function(data) {
+ 		var owner = clients[data.room].owner.socketId;
+		//Check if sender is the owner of the room
+		if(owner === socket.id){
+			// Ensure that the room is valid
+			if(!(_.isUndefined(clients[data.room]))){
+				// Generate a unique announcement id for each announcement
+				data.announcement_id = generateUUID();
+				// Create a set of clientId which is suppose to receive announcement
+				announcement_receivable[data.announcement_id]= new Set();
+				for(i=0; i<clients[data.room].members.length;i++){
+					console.log(clients[data.room].members[i]);
+					//	Ensure that clients are not pending
+					var memberId = clients[data.room].members[i].socketId;
+					if(clients[data.room].members[i].isPending === false && memberId != ){
+						// Add client to the set of receivable
+						announcement_receivable[data.announcement_id].add(memberId);
 					}
-
-				
 				}
-
+				// Emit announcement to entire room
+				io.to(data.room).emit('ANNOUNCEMENT', data);
+				io.emit('SOCKET_CONTROL_UPDATE', clients);
 			}
-			io.emit('SOCKET_CONTROL_UPDATE', clients);
-			
-		})
+		}
+	});
 
-		socket.on('send', function(data) {
-			console.log(data.room)
-			socket.broadcast.to(data.room).emit('message', data.data);
-			console.log("send received" + socket.id)
-			io.emit('SOCKET_CONTROL_UPDATE', clients);
-		});
+ 	socket.on('ANNOUNCEMENT_RECEIVED', function(data) {
+ 		var owner = clients[data.room].owner.socketId;
+ 		if(!(_.isUndefined(clients[data.room]))){
+ 			console.log('before deletion'+	announcement_receivable[data.announcement_id].size);
+ 			// If sender is not the owner, remove sender from the receivable set
+ 			if(owner !== socket.id){
+ 				announcement_receivable[data.announcement_id].delete(socket.id);
+ 			}
+ 			console.log('after deletion'+	announcement_receivable[data.announcement_id].size);
+ 			// If all member has received announcement, inform owner
+ 			if (announcement_receivable[data.announcement_id].size <= 0) {
+ 				io.to(owner).emit('ANNOUNCEMENT_RECEIVED',data);
+ 				io.emit('SOCKET_CONTROL_UPDATE', clients);
+ 			}
+ 		}
+ 	});
 
-		socket.on('ADD_USER', function(data) {
+ 	socket.on('send', function(data) {
+ 		console.log(data.room)
+ 		socket.broadcast.to(data.room).emit('message', data.data);
+ 		console.log("send received" + socket.id)
+ 		io.emit('SOCKET_CONTROL_UPDATE', clients);
+ 	});
+
+ 	socket.on('ADD_USER', function(data) {
 			// if no
 			if(_.isUndefined(clients[data.room])){
 				socket.join(data.room);
 				var ownderInfo = {
-						clientId: data.ownerId,
-						socketId: socket.id,
-						isPending: false
-					};
+					clientId: data.ownerId,
+					socketId: socket.id,
+					isPending: false
+				};
 
 				clients[data.room] = {
 					owner: ownderInfo,
-					members: [ownderInfo] 
+					members: [ownderInfo]
 				};
 
 				console.log(data.id + "is joining " + data.room);
@@ -194,9 +239,9 @@ io.sockets.on('connection', function(socket){
 			}
 
 			var clientInfo = {
-					clientId: data.inviteId,
-					socketId: 0,
-					isPending: true
+				clientId: data.inviteId,
+				socketId: 0,
+				isPending: true
 			}
 
 			for (var i = clients[data.room].members.length - 1; i >= 0; i--) {
@@ -214,7 +259,7 @@ io.sockets.on('connection', function(socket){
 
 			function removeFromInviteList(){
 				if(!(_.isUndefined(clients[data.room]))){
-					var target = _.find(clients[data.room].members, function(m){ 
+					var target = _.find(clients[data.room].members, function(m){
 						return (m.clientId === data.inviteId) && (m.isPending)
 					})
 					clients[data.room].members = _.without(clients[data.room].members, target);
@@ -225,51 +270,51 @@ io.sockets.on('connection', function(socket){
 
 		})
 
-		socket.on('INVITE_ACCEPT', function(data){
-			if(!(_.isUndefined(clients[data.room]))){
-				socket.join(data.room);
-				console.log(data.id + "is joining " + data.room)
-				io.to(data.room).emit('NEW_MEMBER_JOINED', data);
+socket.on('INVITE_ACCEPT', function(data){
+	if(!(_.isUndefined(clients[data.room]))){
+		socket.join(data.room);
+		console.log(data.id + "is joining " + data.room)
+		io.to(data.room).emit('NEW_MEMBER_JOINED', data);
+	}
+	io.emit('SOCKET_CONTROL_UPDATE', clients);
+})
+
+socket.on('INVITE_REJECT', function(data){
+	if(!(_.isUndefined(clients[data.room]))){
+		clients[data.room].members = _.reject(clients[data.room].members, function (member){
+			if(member.clientId === data.id && member.isPending) {
+				return true;
+			} else {
+				return false;
 			}
-			io.emit('SOCKET_CONTROL_UPDATE', clients);
 		})
-
-		socket.on('INVITE_REJECT', function(data){
-			if(!(_.isUndefined(clients[data.room]))){
-				clients[data.room].members = _.reject(clients[data.room].members, function (member){
-					if(member.clientId === data.id && member.isPending) {
-						return true;
-					} else {
-						return false;
-					}
-				})
-				io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
-			}
-			io.emit('SOCKET_CONTROL_UPDATE', clients);
-		})
+		io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
+	}
+	io.emit('SOCKET_CONTROL_UPDATE', clients);
+})
 
 
 
-		socket.on('GET_MEMBERS', function(data){
-			if(!(_.isUndefined(clients[data.room]))){
-				console.log(clients[data.room])
-				io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
-			}
-			io.emit('SOCKET_CONTROL_UPDATE', clients);
-		})
+socket.on('GET_MEMBERS', function(data){
+	if(!(_.isUndefined(clients[data.room]))){
+		console.log(clients[data.room])
+		io.to(data.room).emit('UPDATE_MEMBERS', clients[data.room])
+	}
+	io.emit('SOCKET_CONTROL_UPDATE', clients);
+})
 
-		socket.on('disconnect', function () {
-			console.log("disconnected")
-			var resultRoom = []
-			var currentRoom = _.allKeys(clients);
-			console.log(currentRoom)
+socket.on('disconnect', function () {
+	console.log("disconnected")
+	var resultRoom = []
+	var currentRoom = _.allKeys(clients);
+	console.log(currentRoom)
 
-			for (var i = currentRoom.length - 1; i >= 0; i--) {
-				var roomName = currentRoom[i];
+	for (var i = currentRoom.length - 1; i >= 0; i--) {
+		var roomName = currentRoom[i];
 
-				var roomInfo = clients[roomName];
-				if(!(_.isUndefined(roomInfo))){
-					//TODO: remove pending 
+		var roomInfo = clients[roomName];
+		if(!(_.isUndefined(roomInfo))){
+					//TODO: remove pending
 
 					var isOwner = (roomInfo.owner.socketId === socket.id)
 					if (isOwner) {
@@ -288,7 +333,7 @@ io.sockets.on('connection', function(socket){
 						})
 					}
 				}
-					
+
 			};
 
 			for (var i = resultRoom.length - 1; i >= 0; i--) {
@@ -305,30 +350,40 @@ io.sockets.on('connection', function(socket){
  * Event listener for HTTP server "error" event.
  */
 
-function onError(error) {
-	if (error.syscall !== 'listen') {
-		throw error;
-	}
+ function onError(error) {
+ 	if (error.syscall !== 'listen') {
+ 		throw error;
+ 	}
 
 	// handle specific listen errors with friendly messages
 	switch (error.code) {
 		case 'EACCES':
-			console.error('Port ' + port + ' requires elevated privileges');
-			process.exit(1);
-			break;
+		console.error('Port ' + port + ' requires elevated privileges');
+		process.exit(1);
+		break;
 		case 'EADDRINUSE':
-			console.error('Port ' + port + ' is already in use');
-			process.exit(1);
-			break;
+		console.error('Port ' + port + ' is already in use');
+		process.exit(1);
+		break;
 		default:
-			throw error;
+		throw error;
 	}
 }
+function generateUUID(){
+	var d = new Date().getTime();
+	var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+		var r = (d + Math.random()*16)%16 | 0;
+		d = Math.floor(d/16);
+		return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+	});
+	return uuid;
+}
+
 
 /**
  * Event listener for HTTP server "listening" event.
  */
 
-function onListening() {
-	debug('Listening on port ' + server.address().port);
-}
+ function onListening() {
+ 	debug('Listening on port ' + server.address().port);
+ }

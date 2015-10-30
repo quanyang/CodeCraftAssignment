@@ -260,12 +260,12 @@ IDE_Morph.prototype.init = function (isAutoFill) {
 
     // override inherited properites:
     this.color = this.backgroundColor;
-	
-	this.currentPage = 1;
-	this.refreshPage = 0;
-	
-	this.openLibrary();
-	//this.library.destroy();
+
+    this.currentPage = 1;
+    this.refreshPage = 0;
+
+    this.openLibrary();
+    //this.library.destroy();
 };
 
 IDE_Morph.prototype.openIn = function (world) {
@@ -1281,8 +1281,8 @@ IDE_Morph.prototype.createSpriteEditor = function () {
 };
 
 IDE_Morph.prototype.createCorralBar = function () {
-	var myself = this;
-	var mine = this.library;
+    var myself = this;
+    var mine = this.library;
     // assumes the stage has already been created
     var padding = 5,
         newbutton,
@@ -1343,10 +1343,10 @@ IDE_Morph.prototype.createCorralBar = function () {
     button = new PushButtonMorph(
         this,
         function (){
-			myself.refreshPage = 1;
-			myself.openLibrary();
-			//mine.destroy();
-		},
+            myself.refreshPage = 1;
+            myself.openLibrary();
+            //mine.destroy();
+        },
         (String.fromCharCode("0xf03e")),
         null,
         null,
@@ -1474,7 +1474,7 @@ IDE_Morph.prototype.createCorral = function () {
 // ****************************
 
 // xinni: "settings" and "add member" buttons on the title bar.
-IDE_Morph.prototype.createShareBoxTitleBarButtons = function () {
+IDE_Morph.prototype.createShareBoxTitleBarButtons = function (isOwner) {
 
     // destroy if already exists
     if (this.shareBoxTitleBarButtons) {
@@ -1487,6 +1487,23 @@ IDE_Morph.prototype.createShareBoxTitleBarButtons = function () {
     this.add(this.shareBoxTitleBarButtons);
 
     console.log("Create sharebox buttons");
+
+    if (isOwner) {
+        // announcement button
+        console.log("ANNOUNCEMENTBUTTON");
+        button = new PushButtonMorph(
+            this,
+            'shareBoxAnnouncementDialog',
+            new SymbolMorph('speechBubble', 14),
+            null,
+            null,
+            null,
+            "symbolButton"
+        );
+        button.drawNew();
+        button.fixLayout();
+        shareBoxAnnouncementButton = button;
+    }
 
     // settings button
     button = new PushButtonMorph(
@@ -1520,6 +1537,10 @@ IDE_Morph.prototype.createShareBoxTitleBarButtons = function () {
 
 
     // add to title bar
+    if (isOwner) {
+        this.shareBoxTitleBarButtons.add(shareBoxAnnouncementButton);
+        this.shareBoxTitleBarButtons.shareBoxAnnouncementButton = shareBoxAnnouncementButton;
+    }
     this.shareBoxTitleBarButtons.add(shareBoxSettingsButton);
     this.shareBoxTitleBarButtons.shareBoxSettingsButton = shareBoxSettingsButton;
     this.shareBoxTitleBarButtons.add(shareBoxAddMemberButton);
@@ -1534,6 +1555,11 @@ IDE_Morph.prototype.createShareBoxTitleBarButtons = function () {
         // position settings button
         this.shareBoxTitleBarButtons.shareBoxSettingsButton.setTop(this.shareBoxTitleBarButtons.top() + 2);
         this.shareBoxTitleBarButtons.shareBoxSettingsButton.setLeft(this.shareBoxTitleBarButtons.shareBoxAddMemberButton.right());
+
+        if (isOwner) {
+            this.shareBoxTitleBarButtons.shareBoxAnnouncementButton.setLeft(this.shareBoxTitleBarButtons.shareBoxSettingsButton.right());
+            this.shareBoxTitleBarButtons.shareBoxAnnouncementButton.setTop(this.shareBoxTitleBarButtons.top() + 2);
+        }
     }
 
     this.fixLayout();
@@ -1835,8 +1861,24 @@ IDE_Morph.makeSocket = function (myself, shareboxId) {
         sharer.ide.fixLayout();
     }.bind(sharer));
 
+    sharer.socket.on('ANNOUNCEMENT', function(data) {
+        console.log(data);
+        console.log("[SOCKET-RECEIVE] ANNOUNCEMENT: \"" + data.data + "\" from " + data.ownerId);
+        console.log(tempIdentifier);
+        if (data.room != tempIdentifier) {
+            myself.showAnnouncementReceivedPopup(data);
+        }
 
-    
+    }.bind(sharer));
+
+    sharer.socket.on('ANNOUNCEMENT_RECEIVED', function(data) {
+        if (tempIdentifier == data.room) {
+            console.log("[SOCKET-RECEIVE] ANNOUNCEMENT RECEIVED: \"" + data.data + "\" from " + data.room);
+            console.log(tempIdentifier);
+            myself.showAllReceivedNotificationPopup(data);
+        }
+    }.bind(sharer));
+
     return sharer;
 };
 
@@ -1849,10 +1891,10 @@ IDE_Morph.prototype.createShareBox = function () {
     // Initialization of Sharebox and its default behavior
     var scripts = this.shareBoxPlaceholderSprite.scripts,
         myself = this;
-        
+
 
     shareboxId = typeof myself.shareboxId !== 'undefined' ? myself.shareboxId : 'No Group Yet';
-    
+
     var room = shareboxId.toString();
 
     // Destroy if sharebox exists
@@ -2156,7 +2198,7 @@ IDE_Morph.prototype.showEntireShareBoxComponent = function(isOwner) {
         //     myself.createShareBoxTitleBar();
         //     myself.createShareBoxTitleBarButtons();
         //     myself.createShareBox();
-            
+
         //     myself.fixLayout();
 
         //     var txt = new TextMorph(data.data[0].id.toString());
@@ -2172,9 +2214,9 @@ IDE_Morph.prototype.showEntireShareBoxComponent = function(isOwner) {
         myself.createShareBoxBar();
         // create title bar buttons
         myself.createShareBoxTitleBar();
-        myself.createShareBoxTitleBarButtons();
+        myself.createShareBoxTitleBarButtons(isOwner);
         myself.createShareBox();
-        
+
         myself.fixLayout();
 
         var txt = new TextMorph(myself.shareboxId);
@@ -2184,14 +2226,14 @@ IDE_Morph.prototype.showEntireShareBoxComponent = function(isOwner) {
         myself.shareBox.add(txt);
 
     } else {
-        
+
         console.log("show entire share box");
         myself.createShareBoxBar();
         // create title bar buttons
         myself.createShareBoxTitleBar();
         myself.createShareBoxTitleBarButtons();
         myself.createShareBox();
-        
+
         myself.fixLayout();
 
         var txt = new TextMorph(myself.shareboxId);
@@ -2374,10 +2416,10 @@ IDE_Morph.prototype.showRequestReceivedMessage = function (inviteData) {
             myself.destroyShareBox();
             var socketData = {room: inviteData.room, removeId: tempIdentifier};
             myself.sharer.socket.emit('REMOVE_USER', socketData);
-            
+
             // @yiwen - remove the person from pending members
         }
-        
+
     };
     this.requestReceivedScreen.add(acceptButton);
 
@@ -2507,7 +2549,7 @@ IDE_Morph.prototype.showViewMembersPopup = function() {
     var socketData = {room:shareboxId}
     this.sharer.socket.emit('GET_MEMBERS', socketData);
     console.log("[SOCKET-SEND] GET_MEMBERS: " + JSON.stringify(socketData));
-    
+
     // TO BE REFRACTORED
     this.sharer.socket.on('UPDATE_MEMBERS', function(data){
         console.log("[SOCKET-RECEIVE] FIRST_UPDATE_MEMBERS: " + JSON.stringify(data));
@@ -2526,7 +2568,7 @@ IDE_Morph.prototype.showViewMembersPopup = function() {
                     groupMembersIsOnline.push(true);
                 }
             }
-            
+
         };
 
         // set up the frames to contain the member list "viewMembersPopup" and "membersViewFrame"
@@ -2567,9 +2609,9 @@ IDE_Morph.prototype.showViewMembersPopup = function() {
 
         // add close button
         var button = new PushButtonMorph(null, null, "Close me", null, null, null, "green");
-        button.action = function() { 
+        button.action = function() {
             myself.sharer.socket.removeAllListeners("UPDATE_MEMBERS");
-            myself.viewMembersPopup.cancel(); 
+            myself.viewMembersPopup.cancel();
         };
         button.setCenter(myself.viewMembersPopup.center());
         button.setBottom(myself.viewMembersPopup.bottom() - 10);
@@ -2584,7 +2626,7 @@ IDE_Morph.prototype.showViewMembersPopup = function() {
         myself.viewMembersPopup.fixLayout();
         myself.viewMembersPopup.popUp(world);
     })
-    
+
 };
 
 IDE_Morph.prototype.showGroupMemberTitle = function(numberOfGroupMembers) {
@@ -2895,6 +2937,240 @@ IDE_Morph.prototype.showGroupCreatedFailurePopup = function() {
     this.createGroupFailurePopup.fixLayout();
     this.createGroupFailurePopup.popUp(world);
 };
+
+// Announcement button
+
+IDE_Morph.prototype.shareBoxAnnouncementDialog = function () {
+    var world = this.world();
+    var myself = this;
+    var popupWidth = 400;
+    var popupHeight = 300;
+
+    if (this.announcementPopup) {
+        this.announcementPopup.destroy();
+    }
+    this.announcementPopup = new DialogBoxMorph();
+    this.announcementPopup.setExtent(new Point(popupWidth, popupHeight));
+
+    // close dialog button
+    button = new PushButtonMorph(
+        this,
+        null,
+        (String.fromCharCode("0xf00d")),
+        null,
+        null,
+        null,
+        "redCircleIconButton"
+    );
+
+    button.setRight(this.announcementPopup.right() - 3);
+    button.setTop(this.announcementPopup.top() + 2);
+    button.action = function () { myself.announcementPopup.cancel(); };
+    button.drawNew();
+    button.fixLayout();
+    this.announcementPopup.add(button);
+
+    // the text input box
+    var announcementInput = new InputFieldMorph();
+    announcementInput.setWidth(200);
+    announcementInput.setCenter(myself.announcementPopup.center());
+    announcementInput.fontSize = 15;
+    announcementInput.typeInPadding = 4;
+    announcementInput.fixLayout();
+    announcementInput.drawNew();
+    this.announcementPopup.add(announcementInput);
+
+
+    // "send" Button
+    sendButton = new PushButtonMorph(null, null, "Send announcement!", null, null, null, "green");
+    sendButton.setCenter(myself.announcementPopup.center());
+    sendButton.setTop(announcementInput.bottom() + 10);
+    sendButton.action = function () {
+        // get the announcement from the input
+        var announcement = announcementInput.getValue();
+        var txtColor = new Color(204, 0, 0);
+
+
+        if (announcement.length) {
+            // send announcement
+                socketData = { room: myself.shareboxId, data: announcement, ownerId: tempIdentifier};
+                myself.sharer.socket.emit('ANNOUNCEMENT', { room: myself.shareboxId, data: announcement, ownerId: tempIdentifier});
+                console.log("[SOCKET-SEND] ANNOUNCEMENT: " + JSON.stringify(socketData));
+                myself.announcementPopup.cancel();
+        }
+    };
+    this.announcementPopup.add(sendButton);
+
+
+    // add title
+    this.announcementPopup.labelString = "Send an announcement.";
+    this.announcementPopup.createLabel();
+
+    // popup
+    this.announcementPopup.drawNew();
+    this.announcementPopup.fixLayout();
+    this.announcementPopup.popUp(world);
+}
+
+// Announcement Popup
+
+IDE_Morph.prototype.showAnnouncementReceivedPopup = function(data) {
+    var world = this.world();
+    var myself = this;
+    var popupWidth = 400;
+    var popupHeight = 300;
+
+    this.announcementReceivedPopup = new DialogBoxMorph();
+    this.announcementReceivedPopup.setExtent(new Point(popupWidth, popupHeight));
+    var announcementReceivedPopup = this.announcementReceivedPopup;
+
+    // close dialog button
+    button = new PushButtonMorph(
+        this,
+        null,
+        (String.fromCharCode("0xf00d")),
+        null,
+        null,
+        null,
+        "redCircleIconButton"
+    );
+
+    button.setRight(this.announcementReceivedPopup.right() - 3);
+    button.setTop(this.announcementReceivedPopup.top() + 2);
+    button.action = function () {
+        announcementReceivedPopup.cancel();
+        myself.sharer.socket.emit('ANNOUNCEMENT_RECEIVED', data);
+        console.log("[SOCKET-SEND] ANNOUNCEMENT RECEIVED: " + JSON.stringify(data));
+    };
+    button.drawNew();
+    button.fixLayout();
+    this.announcementReceivedPopup.add(button);
+
+    // add title
+    this.announcementReceivedPopup.labelString = "Announcements";
+    this.announcementReceivedPopup.createLabel();
+
+    // failure image
+    var announcementImage = new Morph();
+    announcementImage.texture = 'images/notification.png';
+    announcementImage.drawNew = function () {
+        this.image = newCanvas(this.extent());
+        var context = this.image.getContext('2d');
+        var picBgColor = myself.announcementReceivedPopup.color;
+        context.fillStyle = picBgColor.toString();
+        context.fillRect(0, 0, this.width(), this.height());
+        if (this.texture) {
+            this.drawTexture(this.texture);
+        }
+    };
+
+    announcementImage.setExtent(new Point(129, 123));
+    announcementImage.setCenter(this.announcementReceivedPopup.center());
+    announcementImage.setTop(this.announcementReceivedPopup.top() + 40);
+    this.announcementReceivedPopup.add(announcementImage);
+
+    // announcement message
+    txt = new TextMorph("Announcement: \n" + data.data);
+
+
+    txt.setCenter(this.announcementReceivedPopup.center());
+    txt.setTop(announcementImage.bottom() + 20);
+    this.announcementReceivedPopup.add(txt);
+    txt.drawNew();
+
+    // "Received" button, closes the dialog.
+    okButton = new PushButtonMorph(null, null, "Received :)", null, null, null, "green");
+    okButton.setCenter(this.announcementReceivedPopup.center());
+    okButton.setBottom(this.announcementReceivedPopup.bottom() - 10);
+    okButton.action = function() {
+        announcementReceivedPopup.cancel();
+        myself.sharer.socket.emit('ANNOUNCEMENT_RECEIVED', data);
+        console.log("[SOCKET-SEND] ANNOUNCEMENT_RECEIVED: " + JSON.stringify(data));
+    };
+    this.announcementReceivedPopup.add(okButton);
+
+    // popup
+    this.announcementReceivedPopup.drawNew();
+    this.announcementReceivedPopup.fixLayout();
+    this.announcementReceivedPopup.popUp(world);
+};
+
+
+IDE_Morph.prototype.showAllReceivedNotificationPopup = function(data) {
+    var world = this.world();
+    var myself = this;
+    var popupWidth = 400;
+    var popupHeight = 300;
+
+    this.allReceivedNotificationPopup = new DialogBoxMorph();
+    this.allReceivedNotificationPopup.setExtent(new Point(popupWidth, popupHeight));
+    var allReceivedNotificationPopup = this.allReceivedNotificationPopup;
+
+    // close dialog button
+    button = new PushButtonMorph(
+        this,
+        null,
+        (String.fromCharCode("0xf00d")),
+        null,
+        null,
+        null,
+        "redCircleIconButton"
+    );
+    button.setRight(this.allReceivedNotificationPopup.right() - 3);
+    button.setTop(this.allReceivedNotificationPopup.top() + 2);
+    button.action = function () {
+        myself.allReceivedNotificationPopup.cancel();
+    };
+    button.drawNew();
+    button.fixLayout();
+    this.allReceivedNotificationPopup.add(button);
+
+    // add title
+    this.allReceivedNotificationPopup.labelString = "Announcement";
+    this.allReceivedNotificationPopup.createLabel();
+
+    // failure image
+    var announcementImage = new Morph();
+    announcementImage.texture = 'images/notification.png';
+    announcementImage.drawNew = function () {
+        this.image = newCanvas(this.extent());
+        var context = this.image.getContext('2d');
+        var picBgColor = myself.allReceivedNotificationPopup.color;
+        context.fillStyle = picBgColor.toString();
+        context.fillRect(0, 0, this.width(), this.height());
+        if (this.texture) {
+            this.drawTexture(this.texture);
+        }
+    };
+
+    announcementImage.setExtent(new Point(129, 123));
+    announcementImage.setCenter(this.allReceivedNotificationPopup.center());
+    announcementImage.setTop(this.allReceivedNotificationPopup.top() + 40);
+    this.allReceivedNotificationPopup.add(announcementImage);
+
+    // Announcement Message
+    txt = new TextMorph("All members in your sharebox have read the announcement: \n\"" + data.data + "\"!");
+
+
+    txt.setCenter(this.allReceivedNotificationPopup.center());
+    txt.setTop(announcementImage.bottom() + 20);
+    this.allReceivedNotificationPopup.add(txt);
+    txt.drawNew();
+
+    // "Got it!" button, closes the dialog.
+    okButton = new PushButtonMorph(null, null, "Got it!", null, null, null, "green");
+    okButton.setCenter(this.allReceivedNotificationPopup.center());
+    okButton.setBottom(this.allReceivedNotificationPopup.bottom() - 10);
+    okButton.action = function() {
+        allReceivedNotificationPopup.cancel();
+    };
+    this.allReceivedNotificationPopup.add(okButton);
+
+    // popup
+    this.allReceivedNotificationPopup.drawNew();
+    this.allReceivedNotificationPopup.fixLayout();
+    this.allReceivedNotificationPopup.popUp(world);
+}
 
 // * * * * * * * * * Add Member Popup * * * * * * * * * * * * * * * * *
 
@@ -3761,23 +4037,23 @@ IDE_Morph.prototype.showRemoveMemberFailurePopup = function(username) {
 // ****************************
 
 IDE_Morph.prototype.openLibrary = function () {
-	
+
     if (this.library) {
         this.library.destroy();
     }
 
     this.library = new DialogBoxMorph();
     var myself = this;
-	
-	//console.log();
+
+    //console.log();
     // style library
-	if(myself.refreshPage === 0){
-		this.library.setWidth(screen.width * 0.0);
-		this.library.setHeight(screen.height * 0.0);
-	}else{
-		this.library.setWidth(screen.width * 0.6);
-		this.library.setHeight(screen.height * 0.7);
-	}
+    if(myself.refreshPage === 0){
+        this.library.setWidth(screen.width * 0.0);
+        this.library.setHeight(screen.height * 0.0);
+    }else{
+        this.library.setWidth(screen.width * 0.6);
+        this.library.setHeight(screen.height * 0.7);
+    }
     // draw library window contents
     this.createCheckBox();
     this.createImage();
@@ -3802,12 +4078,12 @@ IDE_Morph.prototype.openLibrary = function () {
     this.library.drawNew();
     this.library.fixLayout();
     this.library.popUp(world);
-	//this.library.drawNew();
+    //this.library.drawNew();
     myself.add(this.library);
-	//if(myself.refreshPage === 0){
-	//	this.goNextPage();
-	//	this.goPrevPage();
-	//}
+    //if(myself.refreshPage === 0){
+    //  this.goNextPage();
+    //  this.goPrevPage();
+    //}
 };
 
 
@@ -3894,7 +4170,7 @@ IDE_Morph.prototype.createCheckBox = function() {
         null,
         function () {
             myself.tag2singapore = !myself.tag2singapore;
-			myself.currentPage = 1;
+            myself.currentPage = 1;
             myself.openLibrary();
             mine.destroy();
         },
@@ -3912,7 +4188,7 @@ IDE_Morph.prototype.createCheckBox = function() {
         null,
         function () {
             myself.tag2other = !myself.tag2other;
-			myself.currentPage = 1;
+            myself.currentPage = 1;
             myself.openLibrary();
             mine.destroy();
         },
@@ -3930,7 +4206,7 @@ IDE_Morph.prototype.createCheckBox = function() {
         null,
         function () {
             myself.tag2china = !myself.tag2china;
-			myself.currentPage = 1;
+            myself.currentPage = 1;
             myself.openLibrary();
             mine.destroy();
         },
@@ -3948,7 +4224,7 @@ IDE_Morph.prototype.createCheckBox = function() {
         null,
         function () {
             myself.tag2india = !myself.tag2india;
-			myself.currentPage = 1;
+            myself.currentPage = 1;
             myself.openLibrary();
             mine.destroy();
         },
@@ -3966,7 +4242,7 @@ IDE_Morph.prototype.createCheckBox = function() {
         null,
         function () {
             myself.tag2japan = !myself.tag2japan;
-			myself.currentPage = 1;
+            myself.currentPage = 1;
             myself.openLibrary();
             mine.destroy();
         },
@@ -3999,7 +4275,7 @@ IDE_Morph.prototype.createImage = function() {
         i = 0;
     var minIndex = (myself.currentPage - 1) * spriteonepage;
     var maxIndex = (myself.currentPage * spriteonepage) - 1;
-	var thumbSize = new Point(60, 60);
+    var thumbSize = new Point(60, 60);
 
     function loadCostume(name) {
         //var url = dir + '/' + name,
@@ -4019,43 +4295,43 @@ IDE_Morph.prototype.createImage = function() {
 
         //var imagetoshow = new Image();
         var imagetoshow = new Image();
-		
-		imagetoshow.onload = function () {
+
+        imagetoshow.onload = function () {
             var canvas = newCanvas(new Point(imagetoshow.width, imagetoshow.height));
             canvas.getContext('2d').drawImage(imagetoshow, 0, 0);
-			//sprite.image = canvas;
+            //sprite.image = canvas;
             //myself.droppedImage(canvas, name);
         };
-		imagetoshow.src = line.url;
+        imagetoshow.src = line.url;
         //imagetoshow.width = screen.width * 0.1;
         //imagetoshow.height = screen.width * 0.1;
-		//imagetoshow.setWidth(screen.width * 0.1);
-		//imagetoshow.setHeight(screen.width * 0.1);
-		
+        //imagetoshow.setWidth(screen.width * 0.1);
+        //imagetoshow.setHeight(screen.width * 0.1);
+
         //sprite.setWidth(screen.width * 0.1);
         //sprite.setHeight(screen.width * 0.1);
-		//sprite.width = screen.width *0.2;
+        //sprite.width = screen.width *0.2;
 
         sprite.image = imagetoshow;
         sprite.name = line.name;
-		
-		
-		//imagetoshow.size = 10;
+
+
+        //imagetoshow.size = 10;
         //debugger;
         var heightindex = Math.floor(i/5);
         //sprite.setPosition(new Point(spacelength + (i%5)*150, spaceheight + (heightindex%3) * 180));
-		sprite.setPosition(new Point(spacelength + (i%5)*myself.library.width() * 0.17, spaceheight + (heightindex%3) * myself.library.height() * 0.3));
+        sprite.setPosition(new Point(spacelength + (i%5)*myself.library.width() * 0.17, spaceheight + (heightindex%3) * myself.library.height() * 0.3));
         sprite.isDraggable = false;
-        
-		//imagetoshow.setExtent(thumbSize);
-		thumbnail = new Morph();
-		
-		thumbnail.setExtent(thumbSize);
-		thumbnail.image = sprite.thumbnail(thumbSize);
-		thumbnail.setPosition(
+
+        //imagetoshow.setExtent(thumbSize);
+        thumbnail = new Morph();
+
+        thumbnail.setExtent(thumbSize);
+        thumbnail.image = sprite.thumbnail(thumbSize);
+        thumbnail.setPosition(
         new Point(spacelength + (i%5)*myself.library.width() * 0.17, spaceheight + (heightindex%3) * myself.library.height() * 0.3)
-		);
-		thumbnail.fps = 3;
+        );
+        thumbnail.fps = 3;
         //debugger;
 
         if(myself.tag1people){
@@ -4075,27 +4351,27 @@ IDE_Morph.prototype.createImage = function() {
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'singapore' && myself.tag2singapore){
+            if(line.tag1 === 'singapore' && myself.tag2singapore){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'thailand' && myself.tag2thailand){
+            if(line.tag1 === 'thailand' && myself.tag2thailand){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
@@ -4111,150 +4387,150 @@ IDE_Morph.prototype.createImage = function() {
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'singapore' && myself.tag2singapore){
+            if(line.tag1 === 'singapore' && myself.tag2singapore){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'thailand' && myself.tag2thailand){
+            if(line.tag1 === 'thailand' && myself.tag2thailand){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
         }else if (myself.tag1object){
-			if(line.tag1 === 'object'){
+            if(line.tag1 === 'object'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'singapore' && myself.tag2singapore){
+            if(line.tag1 === 'singapore' && myself.tag2singapore){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-		}else if (myself.tag2singapore){
-			if(line.tag1 === 'singapore'){
+        }else if (myself.tag2singapore){
+            if(line.tag1 === 'singapore'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-		}else if (myself.tag2china){
-			if(line.tag1 === 'china'){
+        }else if (myself.tag2china){
+            if(line.tag1 === 'china'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-		}else if (myself.tag2india){
-			if(line.tag1 === 'india'){
+        }else if (myself.tag2india){
+            if(line.tag1 === 'india'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-		}else if (myself.tag2japan){
-			if(line.tag1 === 'japan'){
+        }else if (myself.tag2japan){
+            if(line.tag1 === 'japan'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-		}else if (myself.tag2other){
-			if(line.tag1 === 'other'){
+        }else if (myself.tag2other){
+            if(line.tag1 === 'other'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(thumbnail);
                 }
             }
-		}
+        }
         else{
             if(i >= minIndex && i <= maxIndex){
                 mine.add(thumbnail);
             }
         }
 
-        var buttonforadding;		//button to add sprite
+        var buttonforadding;        //button to add sprite
         buttonforadding = new PushButtonMorph(
             this.library,
             function () {
@@ -4294,31 +4570,31 @@ IDE_Morph.prototype.createImage = function() {
                 }
                 i++;
             }
-			if(line.tag1 === 'singapore' && myself.tag2singapore){
+            if(line.tag1 === 'singapore' && myself.tag2singapore){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
@@ -4337,169 +4613,169 @@ IDE_Morph.prototype.createImage = function() {
                 }
                 i++;
             }
-			if(line.tag1 === 'singapore' && myself.tag2singapore){
+            if(line.tag1 === 'singapore' && myself.tag2singapore){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
         }else if(myself.tag1object){
-			if(line.tag1 === 'object'){
+            if(line.tag1 === 'object'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'singapore' && myself.tag2singapore){
+            if(line.tag1 === 'singapore' && myself.tag2singapore){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-		}else if(myself.tag2singapore){
-			if(line.tag1 === 'singapore'){
+        }else if(myself.tag2singapore){
+            if(line.tag1 === 'singapore'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'china' && myself.tag2china){
+            if(line.tag1 === 'china' && myself.tag2china){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-		}else if(myself.tag2china){
-			if(line.tag1 === 'china'){
+        }else if(myself.tag2china){
+            if(line.tag1 === 'china'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'india' && myself.tag2india){
+            if(line.tag1 === 'india' && myself.tag2india){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-		}else if(myself.tag2india){
-			if(line.tag1 === 'india'){
+        }else if(myself.tag2india){
+            if(line.tag1 === 'india'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'japan' && myself.tag2japan){
+            if(line.tag1 === 'japan' && myself.tag2japan){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-		}else if(myself.tag2japan){
-			if(line.tag1 === 'japan'){
+        }else if(myself.tag2japan){
+            if(line.tag1 === 'japan'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-			if(line.tag1 === 'other' && myself.tag2other){
+            if(line.tag1 === 'other' && myself.tag2other){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-		}else if(myself.tag2other){
-			if(line.tag1 === 'other'){
+        }else if(myself.tag2other){
+            if(line.tag1 === 'other'){
                 if(i >= minIndex && i <= maxIndex){
                     mine.add(buttonforadding);
                 }
                 i++;
             }
-		}
+        }
         else{
             if(i >= minIndex && i <= maxIndex){
                 mine.add(buttonforadding);
@@ -4580,9 +4856,9 @@ IDE_Morph.prototype.showLibraryPages = function() {
     this.library.add(prevButton);
     this.library.add(nextButton);
     this.library.add(pageText);
-	
-	this.library.changed;
-	//this.goNextPage();
+
+    this.library.changed;
+    //this.goNextPage();
 }
 
 IDE_Morph.prototype.goNextPage = function() {
@@ -4592,19 +4868,19 @@ IDE_Morph.prototype.goNextPage = function() {
     if(myself.currentPage > myself.maxPage){
         myself.currentPage = 1;
     }
-	myself.refreshPage++;
+    myself.refreshPage++;
     myself.openLibrary();
     mine.destroy();
 };
 
 IDE_Morph.prototype.goPrevPage = function() {
-	var myself = this;
+    var myself = this;
     var mine = this.library;
     myself.currentPage--;
     if(myself.currentPage <= 0){
         myself.currentPage = myself.maxPage;
     }
-	myself.refreshPage++;
+    myself.refreshPage++;
     myself.openLibrary();
     mine.destroy();
 };
@@ -4627,7 +4903,7 @@ IDE_Morph.prototype.fixLayout = function (situation) {
     var shareBoxInternalLeftPadding = 6;
 
     // heights and widths
-    var shareBoxTitleBarButtonsWidth = 90;
+    var shareBoxTitleBarButtonsWidth = 120;
     var shareBoxTitleBarHeight = 30;
     var corralBarHeight = 90;
 
@@ -5244,7 +5520,7 @@ IDE_Morph.prototype.nextScene = function () {
         'library window'
     );
 
-    var button;		//merlion
+    var button;     //merlion
     button = new PushButtonMorph(
         this,
         'addNewSpritePrototype',
@@ -5262,7 +5538,7 @@ IDE_Morph.prototype.nextScene = function () {
 
     db.add(button);
 
-    var button2;		//$1 coin
+    var button2;        //$1 coin
     button2 = new PushButtonMorph(
         this,
         'addNewSpritePrototype',
@@ -5280,7 +5556,7 @@ IDE_Morph.prototype.nextScene = function () {
 
     db.add(button2);
 
-    var button3;		//Chinese boy
+    var button3;        //Chinese boy
     button3 = new PushButtonMorph(
         this,
         'addNewSpritePrototype',
@@ -5298,7 +5574,7 @@ IDE_Morph.prototype.nextScene = function () {
 
     db.add(button3);
 
-    var button4;		//malay girl
+    var button4;        //malay girl
     button4 = new PushButtonMorph(
         this,
         'addNewSpritePrototype',
@@ -5316,7 +5592,7 @@ IDE_Morph.prototype.nextScene = function () {
 
     db.add(button4);
 
-    var button5;		//indian boy
+    var button5;        //indian boy
     button5 = new PushButtonMorph(
         this,
         'addNewSpritePrototype',
@@ -5334,7 +5610,7 @@ IDE_Morph.prototype.nextScene = function () {
 
     db.add(button5);
 
-    var button6;		//ah lian
+    var button6;        //ah lian
     button6 = new PushButtonMorph(
         this,
         'addNewSpritePrototype',
@@ -5958,7 +6234,7 @@ IDE_Morph.prototype.projectMenu = function () {
             localize(graphicsName) + '...',
         function () {
             //var dir = graphicsName,
-			var dir = 'api/library/costumes',
+            var dir = 'api/library/costumes',
                 names = myself.getCostumesList(dir),
                 libMenu = new MenuMorph(
                     myself,
@@ -5967,7 +6243,7 @@ IDE_Morph.prototype.projectMenu = function () {
 
             function loadCostume(name) {
                 //var url = dir + '/' + name,
-				var url = name,
+                var url = name,
                     img = new Image();
                 img.onload = function () {
                     var canvas = newCanvas(new Point(img.width, img.height));
@@ -5978,8 +6254,8 @@ IDE_Morph.prototype.projectMenu = function () {
             }
 
             names.forEach(function (line) {
-				//console.log(line.length);
-				//debugger;
+                //console.log(line.length);
+                //debugger;
                 //if (line.length > 0) {
                     libMenu.addItem(
                         line.name,
@@ -6030,10 +6306,10 @@ IDE_Morph.prototype.getCostumesList = function (dirname) {
         costumes = [];
 
     dir = JSON.parse(this.getURL(dirname));
-	costumes = dir.data;
-	//debugger;
-	/*
-	debugger;
+    costumes = dir.data;
+    //debugger;
+    /*
+    debugger;
     dir.split('\n').forEach(
         function (line) {
             var startIdx = line.search(new RegExp('href="[^./?].*"')),
@@ -6051,7 +6327,7 @@ IDE_Morph.prototype.getCostumesList = function (dirname) {
     costumes.sort(function (x, y) {
         return x < y ? -1 : 1;
     });
-	*/
+    */
     return costumes;
 };
 
@@ -10466,4 +10742,3 @@ ShareBoxScriptsMorph.prototype.reactToDropOf = function (blockMorph) {
         blockMorph.slideBackTo(world.hand.grabOrigin);
     }
 };
-
