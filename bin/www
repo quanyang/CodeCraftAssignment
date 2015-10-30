@@ -183,7 +183,7 @@
 					console.log(clients[data.room].members[i]);
 					//	Ensure that clients are not pending
 					var memberId = clients[data.room].members[i].socketId;
-					if(clients[data.room].members[i].isPending === false && memberId != ){
+					if(clients[data.room].members[i].isPending === false && memberId != owner){
 						// Add client to the set of receivable
 						announcement_receivable[data.announcement_id].add(memberId);
 					}
